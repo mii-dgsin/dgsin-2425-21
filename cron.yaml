@@ -1,0 +1,4 @@
+cron:
+- description: "Daily Trello stats"
+  url: /api/v1/trello-stats/update
+  schedule: every day 02:00

@@ -1,0 +1,6 @@
+runtime: nodejs22
+includes:
+  - env_variables.yaml
+automatic_scaling:
+  max_instances: 1
+  min_instances: 1
