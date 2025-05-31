@@ -5,17 +5,19 @@ if (process.env.NODE_ENV !== 'production') {
   require('dotenv').config();
 }
 
-const express     = require('express');
-const cors        = require('cors');
-const path        = require('path');
+const express        = require('express');
+const cors           = require('cors');
+const path           = require('path');
 const { MongoClient } = require('mongodb');
-const cron        = require('node-cron');
-const trelloRoutes = require('./routes/trelloRoutes');
+const cron           = require('node-cron');
+
+const trelloRoutes   = require('./routes/trelloRoutes');
+const authRoutes     = require('./routes/authRoutes'); // <-- Ruta de autenticación
 const { getTrelloStats } = require('./scrape/trelloScraper');
 
 const app = express();
 
-// 2. Middleware CORS (permite peticiones desde tu front desplegado)
+// 2. Middleware CORS (permite peticiones desde tu front)
 app.use(cors({
   origin: [
     'https://dgsin-2425-21-front.ew.r.appspot.com',
@@ -33,14 +35,21 @@ async function startServer() {
   const client = new MongoClient(process.env.MDB_URL);
   await client.connect();
 
-  const db = client.db();  
+  const db = client.db();
+
+  // 4.1. Crear (o usar) colección de estadísticas
   const statsColl = db.collection('trelloStats');
-
-  // (Opcional) limpia cualquier dato previo
+  // (Opcional) limpia cualquier dato previo:
   // await statsColl.deleteMany({});
-
   app.locals.statsCollection = statsColl;
-  console.log('✅ Conectado a MongoDB y colección limpia');
+
+  // 4.2. Crear (o usar) colección de usuarios para autenticación
+  const usersColl = db.collection('users');
+  // Crear índice único en email para evitar duplicados
+  await usersColl.createIndex({ email: 1 }, { unique: true });
+  app.locals.usersCollection = usersColl;
+
+  console.log('✅ Conectado a MongoDB y colecciones configuradas');
 
   // 5. Cron diario a las 02:00 para actualizar las estadísticas
   cron.schedule('0 2 * * *', async () => {
@@ -57,10 +66,13 @@ async function startServer() {
     }
   });
 
-  // 6. Montar API versionada
+  // 6. Montar rutas de autenticación bajo /api/v1/auth
+  app.use('/api/v1/auth', authRoutes);
+
+  // 7. Montar API de Trello bajo /api/v1
   app.use('/api/v1', trelloRoutes);
 
-  // 7. Levantar el servidor
+  // 8. Levantar el servidor
   const PORT = process.env.PORT || 8080;
   app.listen(PORT, () => {
     console.log(`🚀 Server listo en puerto ${PORT}`);
@@ -69,7 +81,7 @@ async function startServer() {
   });
 }
 
-// 8. Iniciar todo
+// 9. Iniciar todo
 startServer().catch(err => {
   console.error('❌ No se pudo iniciar el servidor:', err);
 });
