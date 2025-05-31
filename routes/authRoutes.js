@@ -6,9 +6,9 @@ const jwt     = require('jsonwebtoken');
 
 const router = express.Router();
 const SALT_ROUNDS = 10;
-const JWT_SECRET = process.env.JWT_SECRET || 'cambiame_por_un_secreto_muy_seguro';
+const JWT_SECRET = process.env.JWT_SECRET || 'No_se_me_ocurre_nada';
 
-// Helper para generar JWT
+// Helper para generar JWT incluyendo el role
 function generateToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
 }
@@ -22,26 +22,23 @@ router.post('/register', async (req, res) => {
 
   try {
     const usersColl = req.app.locals.usersCollection;
-
-    // Verificar si ya existe ese email
     const existing = await usersColl.findOne({ email });
     if (existing) {
       return res.status(409).json({ error: 'Ese email ya está registrado.' });
     }
 
-    // Hashear la contraseña
     const hash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Crear documento de usuario
+    // Asignamos role 'user' por defecto al registrarse
     const newUser = {
       username,
       email,
       passwordHash: hash,
+      role: 'user',       // <--- rol por defecto
       createdAt: new Date()
     };
 
     await usersColl.insertOne(newUser);
-
     return res.status(201).json({ message: 'Usuario registrado correctamente.' });
   } catch (err) {
     console.error('Error en /register:', err);
@@ -59,30 +56,29 @@ router.post('/login', async (req, res) => {
   try {
     const usersColl = req.app.locals.usersCollection;
     const user = await usersColl.findOne({ email });
-
     if (!user) {
-      // No existe ese email
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
-    // Verificar contraseña
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
-    // Generar JWT con payload mínimo (puedes añadir más claims si quieres)
+    // El payload ahora incluye el role
     const payload = {
       userId: user._id.toString(),
-      email: user.email
+      email:  user.email,
+      role:   user.role         // <--- almacenamos el rol en el JWT
     };
     const token = generateToken(payload);
 
     return res.json({
-      token,
-      expiresIn: 3600,          // segs
+      token, 
+      expiresIn: 3600,
       username: user.username,
-      email: user.email
+      email: user.email,
+      role: user.role           // <--- devolvemos el rol al front también
     });
   } catch (err) {
     console.error('Error en /login:', err);

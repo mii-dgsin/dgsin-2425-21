@@ -12,7 +12,7 @@ const { MongoClient } = require('mongodb');
 const cron           = require('node-cron');
 
 const trelloRoutes   = require('./routes/trelloRoutes');
-const authRoutes     = require('./routes/authRoutes'); // <-- Ruta de autenticación
+const authRoutes     = require('./routes/authRoutes');
 const { getTrelloStats } = require('./scrape/trelloScraper');
 
 const app = express();
@@ -39,14 +39,15 @@ async function startServer() {
 
   // 4.1. Crear (o usar) colección de estadísticas
   const statsColl = db.collection('trelloStats');
-  // (Opcional) limpia cualquier dato previo:
+  // (Opcional) elimina datos previos si lo deseas:
   // await statsColl.deleteMany({});
   app.locals.statsCollection = statsColl;
 
   // 4.2. Crear (o usar) colección de usuarios para autenticación
   const usersColl = db.collection('users');
-  // Crear índice único en email para evitar duplicados
+  // Crear índice único en email y un índice secundario en role
   await usersColl.createIndex({ email: 1 }, { unique: true });
+  await usersColl.createIndex({ role: 1 });
   app.locals.usersCollection = usersColl;
 
   console.log('✅ Conectado a MongoDB y colecciones configuradas');
@@ -69,7 +70,7 @@ async function startServer() {
   // 6. Montar rutas de autenticación bajo /api/v1/auth
   app.use('/api/v1/auth', authRoutes);
 
-  // 7. Montar API de Trello bajo /api/v1
+  // 7. Montar rutas de Trello bajo /api/v1
   app.use('/api/v1', trelloRoutes);
 
   // 8. Levantar el servidor
