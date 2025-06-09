@@ -16,6 +16,7 @@ const trelloRoutes      = require('./routes/trelloRoutes');
 const authRoutes        = require('./routes/authRoutes');
 const moderatorRoutes   = require('./routes/moderatorRoutes');
 const adminRoutes       = require('./routes/adminRoutes');
+const reportRoutes      = require('./routes/reportRoutes');
 
 const { getTrelloStats } = require('./scrape/trelloScraper');
 
@@ -36,6 +37,8 @@ app.use(
 // 3. Middleware JSON + servir estáticos (si usas carpeta "public/")
 app.use(express.json());
 app.use('/', express.static(path.join(__dirname, 'public')));
+
+app.use('/api/v1/reports', reportRoutes);
 
 // 4. Función principal para conectar a Mongo y arrancar el servidor
 async function startServer() {
@@ -108,6 +111,11 @@ async function startServer() {
     await db.collection('reports').createIndex(
       { status: 1, createdAt: -1 },
       { name: 'idx_status_createdAt' }
+    );
+
+    await db.collection('reports').createIndex(
+      { title: 'text', description: 'text' },
+      { name: 'idx_text_bugsearch' }
     );
     console.log('✅ Índice "idx_status_createdAt" creado en "reports(status, createdAt)".');
   }

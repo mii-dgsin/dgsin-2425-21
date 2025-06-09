@@ -61,9 +61,77 @@ router.patch(
 );
 
 //
-// 3) (Opcional) Configuraciones Globales
-// GET /api/v1/admin/config
-// PATCH /api/v1/admin/config
-// … tu lógica aquí …
+// 3) CARGAR DATOS INICIALES DE REPORTES
+// GET /api/v1/admin/loadInitialData
+router.get(
+  '/loadInitialData',
+  verifyToken,
+  checkRole(['admin']),
+  async (req, res) => {
+    try {
+      const reportsColl = req.app.locals.reportsCollection;
+      const existingCount = await reportsColl.countDocuments();
+
+      if (existingCount > 0) {
+        return res.status(200).json({ message: 'Ya existen datos en la colección.' });
+      }
+
+      const sampleReports = [
+        {
+          reporterId: 'user',
+          title: 'Error en botón de envío',
+          description: 'El botón de enviar no funciona en Firefox.',
+          type: 'bug',
+          status: 'pending',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          reporterId: 'user',
+          title: 'Sugerencia de nueva funcionalidad',
+          description: 'Agregar modo oscuro a la interfaz.',
+          type: 'feature',
+          status: 'needsReview',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          reporterId: 'user',
+          title: 'Problema de visualización',
+          description: 'El logo se ve borroso en pantallas Retina.',
+          type: 'bug',
+          status: 'investigating',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          reporterId: 'mod',
+          title: 'Error 500 al enviar formulario',
+          description: 'Se recibe un error del servidor al crear un reporte.',
+          type: 'bug',
+          status: 'resolved',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        },
+        {
+          reporterId: 'mod',
+          title: 'Funcionalidad duplicada',
+          description: 'El panel de usuario repite opciones.',
+          type: 'bug',
+          status: 'duplicate',
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }
+      ];
+
+      await reportsColl.insertMany(sampleReports);
+      return res.status(201).json({ message: 'Datos de prueba insertados correctamente.' });
+
+    } catch (err) {
+      console.error('Error en loadInitialData:', err);
+      return res.status(500).json({ error: 'Error interno al cargar datos iniciales.' });
+    }
+  }
+);
 
 module.exports = router;

@@ -20,24 +20,23 @@ const router = express.Router();
   }
 */
 
-// 1) LISTAR REPORTES PENDIENTES
+// 1) LISTAR TODOS LOS REPORTES
 // GET /api/v1/mod/reports
 router.get(
   '/reports',
   verifyToken,
-  checkRole(['admin', 'moderator']),
+  checkRole(['admin', 'moderator', 'user']),
   async (req, res) => {
     try {
-      // 1.a) Obtenemos la colección de reportes directamente desde app.locals
       const reportsColl = req.app.locals.reportsCollection;
 
-      // 1.b) Hacemos la consulta por status = "pending"
-      const pending = await reportsColl
-        .find({ status: 'pending' })
+      // ✅ Traer todos los reportes, no solo los pendientes
+      const allReports = await reportsColl
+        .find()
         .sort({ createdAt: -1 })
         .toArray();
 
-      return res.json(pending);
+      return res.json(allReports);
     } catch (err) {
       console.error('Error al listar reports:', err);
       return res.status(500).json({ error: 'Error interno del servidor.' });
@@ -45,7 +44,7 @@ router.get(
   }
 );
 
-// 2) TOMAR ACCIÓN SOBRE UN REPORTE (marcar resuelto / eliminar contenido / suspender usuario)
+// 2) TOMAR ACCIÓN SOBRE UN REPORTE
 // PATCH /api/v1/mod/reports/:id
 router.patch(
   '/reports/:id',
@@ -53,59 +52,40 @@ router.patch(
   checkRole(['admin', 'moderator']),
   async (req, res) => {
     const { id } = req.params;
-    // En el body vendrán { action: 'resolve'|'deleteContent'|'suspendUser', suspendDays?: number }
-    const { action, suspendDays } = req.body;
+    const { action } = req.body;
 
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'ID de reporte inválido.' });
     }
 
-    try {
-      // 2.a) Recojo la colección de reportes
-      const reportsColl = req.app.locals.reportsCollection;
+    const validStates = [
+      'pending', 'investigating', 'resolved', 'wontfix', 'duplicate', 'invalid', 'needsReview'
+    ];
 
-      // 2.b) Buscamos el reporte original
+    if (!action || !validStates.includes(action)) {
+      return res.status(400).json({ error: 'Estado de bug no válido o no especificado.' });
+    }
+
+    try {
+      const reportsColl = req.app.locals.reportsCollection;
       const report = await reportsColl.findOne({ _id: new ObjectId(id) });
+
       if (!report) {
         return res.status(404).json({ error: 'Reporte no encontrado.' });
       }
 
-      // 2.c) Marcamos el reporte como "resolved" y guardamos quién lo resolvió
       await reportsColl.updateOne(
         { _id: new ObjectId(id) },
         {
           $set: {
-            status: 'resolved',
+            status: action,
             resolvedBy: req.user.userId,
-            resolvedAt: new Date(),
-            actionTaken: action
+            resolvedAt: new Date()
           }
         }
       );
 
-      // 2.d) Dependiendo de la acción, hacemos tareas adicionales
-      const db = req.app.locals.db;
-
-      if (action === 'deleteContent') {
-        // Ejemplo: si report.type === 'post', eliminamos de la colección "posts"
-        if (report.type === 'post') {
-          const postsColl = db.collection('posts');
-          await postsColl.deleteOne({ _id: new ObjectId(report.reportedId) });
-        } else if (report.type === 'comment') {
-          const commentsColl = db.collection('comments');
-          await commentsColl.deleteOne({ _id: new ObjectId(report.reportedId) });
-        }
-      } else if (action === 'suspendUser') {
-        // Suspender al usuario reportado por "suspendDays" días
-        const usersColl = req.app.locals.usersCollection;
-        const untilDate = new Date(Date.now() + suspendDays * 24 * 60 * 60 * 1000);
-        await usersColl.updateOne(
-          { _id: new ObjectId(report.reportedId) },
-          { $set: { suspendedUntil: untilDate } }
-        );
-      }
-
-      return res.json({ message: 'Reporte procesado correctamente.' });
+      return res.json({ message: 'Estado actualizado correctamente.' });
     } catch (err) {
       console.error('Error al procesar reporte:', err);
       return res.status(500).json({ error: 'Error interno del servidor.' });

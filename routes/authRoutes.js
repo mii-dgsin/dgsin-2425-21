@@ -120,6 +120,7 @@ router.post('/login', async (req, res) => {
     return res.json({
       token,
       expiresIn: 3600,      // 1 hora en segundos
+      userId: user._id.toString(),
       username: user.username,
       email: user.email,
       role: user.role       // También devolvemos el rol al frontend
