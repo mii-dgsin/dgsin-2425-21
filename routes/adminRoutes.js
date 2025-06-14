@@ -1,10 +1,26 @@
-// routes/adminRoutes.js
-
 const express = require('express');
 const { ObjectId } = require('mongodb');
 const { verifyToken, checkRole } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
+
+//
+// GET /api/v1/admin/visitorCountries
+router.get(
+  '/visitorCountries',
+  verifyToken,
+  checkRole(['admin']),
+  async (req, res) => {
+    try {
+      const collection = req.app.locals.db.collection('visitorCountries');
+      const countries = await collection.find().sort({ count: -1 }).toArray();
+      return res.json(countries);
+    } catch (err) {
+      console.error('Error al obtener países:', err);
+      return res.status(500).json({ error: 'Error interno al obtener países.' });
+    }
+  }
+);
 
 //
 // 1) LISTAR TODOS LOS USUARIOS
@@ -16,7 +32,6 @@ router.get(
   async (req, res) => {
     try {
       const usersColl = req.app.locals.usersCollection;
-      // Devolver solo campos públicos, no el passwordHash
       const users = await usersColl
         .find({}, { projection: { passwordHash: 0 } })
         .sort({ createdAt: -1 })
@@ -38,7 +53,7 @@ router.patch(
   checkRole(['admin']),
   async (req, res) => {
     const { id } = req.params;
-    const { role } = req.body; // 'user' | 'moderator' | 'admin'
+    const { role } = req.body;
     if (!['user', 'moderator', 'admin'].includes(role)) {
       return res.status(400).json({ error: 'Rol inválido.' });
     }
