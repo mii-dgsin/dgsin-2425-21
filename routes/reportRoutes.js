@@ -84,12 +84,9 @@ router.get(
  */
 router.get(
   '/docs',
-  // Opcional: podrías protegerla con verifyToken si quieres que sólo se vea autenticado
-  // verifyToken,
   (req, res) => {
-    // Sustituye esta URL por la tuya de Postman Public Docs
     const docsUrl =
-      'https://documenter.getpostman.com/view/XXXXXXXXX/YYY'; 
+      'https://documenter.getpostman.com/view/15292272/2sB2x8Dqsv'; 
     return res.redirect(docsUrl);
   }
 );
