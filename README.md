@@ -13,8 +13,7 @@ Este proyecto representa el backend de la aplicación del módulo DGSIN, desarro
 
 1. Clona el repositorio:
 ```bash
-git clone https://github.com/tu-usuario/dgsin242521-backend.git
-cd dgsin242521-backend
+git clone https://github.com/mii-dgsin/dgsin-2425-21.git
 ```
 
 2. Instala las dependencias:
